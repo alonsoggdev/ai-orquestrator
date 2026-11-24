@@ -18,3 +18,13 @@ npm start       # build del frontend y todo servido en http://localhost:3001
 - Merge: `git merge --no-ff` en el repo principal (debe estar en la rama base y limpio). Aborta si hay conflictos.
 - Seguimiento: prompt nuevo sobre la misma sesión con `--resume`.
 - Variable `CLAUDE_BIN` para apuntar a otro binario; `PORT` para el puerto.
+
+## App Electron
+
+```bash
+npm run electron   # compila el frontend, arranca el servidor (puerto 3737) y abre la ventana
+```
+
+- `electron/main.cjs` lanza el servidor con el `node` del sistema (evita recompilar `better-sqlite3` para Electron) y cierra el servidor al salir. Requiere `node` y `claude` en el `PATH`.
+- Variables: `PORT` (por defecto 3737, distinto del modo dev), `NODE_BIN`.
+- Una sola instancia a la vez. En Linux como root añade `--no-sandbox`.
