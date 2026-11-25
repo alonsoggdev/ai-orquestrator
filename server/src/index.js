@@ -73,7 +73,7 @@ app.post('/api/voice/speak', wrap(async (req, res) => {
 
 // ---------- Asistente (texto/voz → MCP) ----------
 app.post('/api/assistant', wrap(async (req, res) => {
-  res.json(await runAssistant({ text: req.body.text, reset: !!req.body.reset, port: PORT }));
+  res.json(await runAssistant({ text: req.body.text, reset: !!req.body.reset, fromVoice: !!req.body.fromVoice, port: PORT }));
 }));
 // Las acciones peligrosas las confirma el usuario en pantalla: el MCP solo avisa, la UI ejecuta.
 app.post('/api/assistant/confirm', wrap(async (req, res) => {

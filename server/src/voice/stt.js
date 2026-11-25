@@ -46,12 +46,20 @@ export function prepareStt(onProgress = () => {}) {
   return loading;
 }
 
-/** audio: Float32Array mono a 16 kHz. */
+// Whisper "alucina" frases de vídeos de YouTube cuando oye silencio o ruido: se descartan.
+const PHANTOM = /subt[ií]tulos|amara\.org|suscr[ií]b|gracias por (ver|vuestra|su atenci)|hasta la pr[oó]xima|m[uú]sica|^[\s.,!¡¿?…-]*$/i;
+const MIN_RMS = 0.003; // por debajo es silencio
+
+/** audio: Float32Array mono a 16 kHz. Devuelve '' si no hay voz reconocible. */
 export async function transcribe(audio) {
   if (state.status === 'missing' || state.status === 'downloading') {
     throw Object.assign(new Error('El modelo de voz aún no está descargado.'), { code: 'MODEL_MISSING' });
   }
+  let sum = 0;
+  for (let i = 0; i < audio.length; i++) sum += audio[i] * audio[i];
+  if (Math.sqrt(sum / audio.length) < MIN_RMS) return '';
   await prepareStt();
   const out = await asr(audio, { language: 'spanish', task: 'transcribe', chunk_length_s: 30 });
-  return String(out.text || '').trim();
+  const text = String(out.text || '').trim();
+  return PHANTOM.test(text) && text.length < 60 ? '' : text;
 }

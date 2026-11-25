@@ -18,7 +18,7 @@ const SpeakerIcon = ({ off }) => (
 export default function AssistantBar() {
   const [text, setText] = useState('');
   const [phase, setPhase] = useState('idle'); // idle | recording | transcribing | working
-  const [reply, setReply] = useState(null); // { text, heard, error }
+  const [reply, setReply] = useState(null); // { text, heard, error, ask }
   const [fresh, setFresh] = useState(true); // próxima orden empieza conversación nueva
   const [voiceOn, setVoiceOn] = useState(voiceReplyEnabled());
   const [setup, setSetup] = useState(false);
@@ -38,8 +38,8 @@ export default function AssistantBar() {
   const run = async (t, heard) => {
     setPhase('working'); setReply(null);
     try {
-      const r = await api.assistant(t, fresh);
-      setReply({ text: r.reply, heard }); setFresh(false); setText('');
+      const r = await api.assistant(t, fresh, !!heard);
+      setReply({ text: r.reply, heard, ask: r.expectsReply }); setFresh(false); setText('');
       if (voiceOn) speak(r.spoken);
     } catch (err) { setReply({ error: err.message, heard }); }
     finally { setPhase('idle'); }
@@ -72,7 +72,7 @@ export default function AssistantBar() {
       const audio = await r.stop();
       if (!audio) { setPhase('idle'); return; }
       const heard = await transcribeAudio(audio);
-      if (!heard) { setPhase('idle'); setReply({ error: 'No te he entendido. Inténtalo de nuevo.' }); return; }
+      if (!heard) { setPhase('idle'); setReply({ error: 'No te he oído bien. Acércate al micrófono e inténtalo de nuevo.' }); return; }
       setText(heard);
       await run(heard, heard);
     } catch (e) {
@@ -98,7 +98,7 @@ export default function AssistantBar() {
   }, []);
 
   const placeholder = {
-    idle: 'Pídele algo al asistente… (Ctrl+K)',
+    idle: reply?.ask ? 'Responde al asistente… (mantén el micrófono)' : 'Pídele algo al asistente… (Ctrl+K)',
     recording: 'Te escucho… suelta para enviar',
     transcribing: 'Transcribiendo lo que has dicho…',
     working: 'El asistente está trabajando…',

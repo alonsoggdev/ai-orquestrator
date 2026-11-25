@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { VOICE, cleanForSpeech } from './persona.js';
 
 const require = createRequire(import.meta.url);
 const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data/voice/vits-piper-es_ES-davefx-medium');
@@ -41,11 +42,11 @@ function toWav(samples, rate) {
 
 /** Devuelve un WAV con el texto hablado. Lanza TTS_MISSING si la voz no está disponible. */
 export async function synthesize(text) {
-  const clean = String(text || '').replace(/[*_`#]/g, '').trim().slice(0, 1500);
+  const clean = cleanForSpeech(text, VOICE.maxChars * 3);
   if (!clean) throw new Error('No hay texto que leer');
   if (!installed()) throw Object.assign(new Error('La voz local no está instalada.'), { code: 'TTS_MISSING' });
   try {
-    const a = load().generate({ text: clean, sid: 0, speed: 1.0 });
+    const a = load().generate({ text: clean, sid: VOICE.speakerId, speed: VOICE.speed });
     return toWav(a.samples, a.sampleRate);
   } catch (e) {
     failed = e.message;
