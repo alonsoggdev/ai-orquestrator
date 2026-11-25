@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { q } from './db.js';
 import { autoCommit } from './git.js';
+import { getAgent, getConfig } from './agents/index.js';
 
-const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
 const procs = new Map();           // taskId -> ChildProcess
 const listeners = new Set();       // (msg) => void ; msg = {type:'task'|'event', ...}
 
@@ -28,14 +28,14 @@ function setStatus(id, status, extra = {}) {
 
 /** Lanza (o reanuda con sessionId) Claude Code dentro del worktree de la tarea. */
 export function startRun(task, prompt, { resume = false } = {}) {
-  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose',
-    '--dangerously-skip-permissions'];
-  if (resume && task.session_id) args.push('--resume', task.session_id);
+  const agent = getAgent(task.agent);
+  const config = getConfig(task.agent);
+  const args = agent.buildArgs({ prompt, sessionId: resume ? task.session_id : null, config });
 
   addEvent(task.id, 'prompt', prompt);
   setStatus(task.id, 'running');
 
-  const child = spawn(CLAUDE_BIN, args, {
+  const child = spawn(agent.bin(config), args, {
     cwd: task.worktree_path,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
@@ -47,9 +47,9 @@ export function startRun(task, prompt, { resume = false } = {}) {
     if (!line.trim()) return;
     try {
       const obj = JSON.parse(line);
-      if (obj.session_id && obj.session_id !== q.getTask.get(task.id).session_id) {
-        q.setSession.run(obj.session_id, task.id);
-      }
+      const sid = agent.sessionIdFrom(obj);
+      if (sid && sid !== q.getTask.get(task.id).session_id) q.setSession.run(sid, task.id);
+      if (obj.type === 'result' && obj.result) lastResult = obj.result;
       addEvent(task.id, 'json', line);
     } catch {
       addEvent(task.id, 'stderr', line); // salida no-JSON: la mostramos tal cual
@@ -76,7 +76,21 @@ export function startRun(task, prompt, { resume = false } = {}) {
       catch (e) { addEvent(task.id, 'system', `autocommit falló: ${e.message}`); }
     }
     setStatus(task.id, status, extra);
+    announce(status);
   };
+
+  // Resumen hablado de lo que ha hecho el asistente: se guarda en el log y se avisa a las ventanas.
+  const announce = async (status) => {
+    let text;
+    try {
+      if (status === 'done' && lastResult) text = await agent.summarize({ text: lastResult, config });
+      else if (status === 'error') text = `La tarea ${task.name} ha fallado.`;
+      if (!text) return;
+      addEvent(task.id, 'voice', text);
+      emit({ type: 'speak', taskId: task.id, name: task.name, text });
+    } catch { /* el resumen es opcional */ }
+  };
+  let lastResult = '';
   child.on('error', (e) => finish('error', { error: e.message }));
   child.on('close', (code, signal) => {
     if (signal) finish('error', { exit_code: code, error: `terminado por ${signal}` });

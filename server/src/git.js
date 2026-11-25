@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 
 const run = promisify(execFile);
 
@@ -13,6 +14,30 @@ export async function git(cwd, ...args) {
     const msg = (e.stderr || e.message || '').toString().trim();
     throw new Error(`git ${args.join(' ')}: ${msg}`);
   }
+}
+
+/** Raíz del repo que contiene la carpeta, o null si no está dentro de ningún repo git. */
+export async function repoRoot(dir) {
+  try { return await git(dir, 'rev-parse', '--show-toplevel'); } catch { return null; }
+}
+
+/** Convierte una carpeta normal en repo git con un primer commit (necesario para trabajar en copias). */
+export async function initRepo(dir) {
+  const home = os.homedir();
+  const parts = path.resolve(dir).split(/[\\/]/).filter(Boolean);
+  if (path.resolve(dir) === path.resolve(home) || parts.length < 2) {
+    throw new Error('Por seguridad no se puede preparar esa carpeta. Elige la carpeta concreta de tu proyecto.');
+  }
+  await git(dir, 'init');
+  await ensureCommit(dir);
+}
+
+/** Si el repo no tiene ningún commit, crea uno con lo que haya (los worktrees parten de un commit). */
+export async function ensureCommit(top) {
+  try { await git(top, 'rev-parse', '--verify', 'HEAD'); return; } catch { /* sin commits */ }
+  await git(top, 'add', '-A');
+  await git(top, '-c', 'user.name=orquestrator', '-c', 'user.email=orquestrator@local',
+    'commit', '--allow-empty', '-m', 'Estado inicial del proyecto');
 }
 
 export async function repoInfo(repoPath) {
