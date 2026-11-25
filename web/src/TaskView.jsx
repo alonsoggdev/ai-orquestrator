@@ -3,7 +3,7 @@ import { api } from './api.js';
 import LogView from './LogView.jsx';
 import DiffView from './DiffView.jsx';
 
-export default function TaskView({ task, events, onDeleted }) {
+export default function TaskView({ task, events, onDeleted, onBack }) {
   const [tab, setTab] = useState('log');
   const [err, setErr] = useState('');
   const [followUp, setFollowUp] = useState('');
@@ -20,6 +20,7 @@ export default function TaskView({ task, events, onDeleted }) {
     <div className="taskview">
       <header>
         <div>
+          {onBack && <button className="link" onClick={onBack}>← Volver al proyecto</button>}
           <h2>{task.name} <span className={`badge ${task.status}`}>{task.status}</span></h2>
           <div className="tmeta">
             {task.branch} ← {task.base_branch} · <code>{task.worktree_path}</code>
@@ -44,7 +45,7 @@ export default function TaskView({ task, events, onDeleted }) {
         <button className={tab === 'log' ? 'on' : ''} onClick={() => setTab('log')}>Log</button>
         <button className={tab === 'diff' ? 'on' : ''} onClick={() => setTab('diff')} disabled={running || closed}>Diff</button>
       </nav>
-      {tab === 'log' ? <LogView events={events} running={running} /> : <DiffView task={task} />}
+      {tab === 'log' ? <LogView events={events} running={running} agent={task.agent} /> : <DiffView task={task} />}
       {!running && !closed && (
         <form className="followup" onSubmit={(e) => {
           e.preventDefault();

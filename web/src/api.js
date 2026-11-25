@@ -5,10 +5,22 @@ async function req(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || r.statusText);
+  if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), { code: data.code });
   return data;
 }
 export const api = {
+  setup: () => req('GET', '/api/setup'),
+  saveAgentConfig: (id, cfg) => req('PUT', `/api/agents/${id}/config`, cfg),
+  startLogin: (id) => req('POST', `/api/agents/${id}/login`),
+  submitLoginCode: (id, code) => req('POST', `/api/agents/${id}/login/code`, { code }),
+  testAgent: (id) => req('POST', `/api/agents/${id}/test`),
+  completeSetup: () => req('POST', '/api/setup/complete'),
+  projects: () => req('GET', '/api/projects'),
+  assistant: (text, reset = false) => req('POST', '/api/assistant', { text, reset }),
+  listFolders: (path) => req('GET', `/api/fs/list${path ? `?path=${encodeURIComponent(path)}` : ''}`),
+  createProject: (b) => req('POST', '/api/projects', b),
+  renameProject: (id, name) => req('PUT', `/api/projects/${id}`, { name }),
+  deleteProject: (id) => req('DELETE', `/api/projects/${id}`),
   list: () => req('GET', '/api/tasks'),
   create: (b) => req('POST', '/api/tasks', b),
   cont: (id, prompt) => req('POST', `/api/tasks/${id}/continue`, { prompt }),
