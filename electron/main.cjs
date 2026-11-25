@@ -35,7 +35,7 @@ function waitForServer(retries = 60) {
 async function createWindow() {
   await waitForServer();
   win = new BrowserWindow({
-    width: 1400, height: 900, title: 'Orquestrator', backgroundColor: '#0f1115',
+    width: 1400, height: 900, title: 'Orquestrator', backgroundColor: '#000',
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   win.setMenuBarVisibility(false);
