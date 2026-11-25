@@ -93,3 +93,19 @@ export function submitLoginCode(id, code) {
 }
 
 export const detectAgents = () => Promise.all(listAgents().map((a) => agentStatus(a.id)));
+
+// Uso de la cuenta activa del agente por defecto. Cacheado: el endpoint de uso tiene límite de consultas.
+const USAGE_TTL = 60_000;
+let usageCache = null; // { id, at, data }
+export async function agentUsage(id = DEFAULT_AGENT) {
+  const a = getAgent(id);
+  if (usageCache?.id === a.id && Date.now() - usageCache.at < USAGE_TTL) return usageCache.data;
+  let data;
+  if (!a.usage) data = { agent: a.id, label: a.label, available: false, reason: 'Este agente no informa de su uso' };
+  else {
+    try { data = { agent: a.id, label: a.label, available: true, ...(await a.usage(getConfig(a.id))) }; }
+    catch (e) { data = { agent: a.id, label: a.label, available: false, reason: e.message }; }
+  }
+  usageCache = { id: a.id, at: Date.now(), data };
+  return data;
+}

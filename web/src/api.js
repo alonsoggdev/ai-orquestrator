@@ -15,6 +15,7 @@ export const api = {
   submitLoginCode: (id, code) => req('POST', `/api/agents/${id}/login/code`, { code }),
   testAgent: (id) => req('POST', `/api/agents/${id}/test`),
   completeSetup: () => req('POST', '/api/setup/complete'),
+  usage: () => req('GET', '/api/usage'),
   projects: () => req('GET', '/api/projects'),
   assistant: (text, reset = false) => req('POST', '/api/assistant', { text, reset }),
   listFolders: (path) => req('GET', `/api/fs/list${path ? `?path=${encodeURIComponent(path)}` : ''}`),
