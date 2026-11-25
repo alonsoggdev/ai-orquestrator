@@ -9,14 +9,14 @@
 export const VOICE = {
   speed: 1.0, // 1.0 = normal; más bajo = más pausado
   speakerId: 0,
-  maxChars: 500, // una respuesta hablada más larga cansa: se recorta por frase
+  maxChars: 600, // una respuesta hablada más larga cansa: se recorta por frase
 };
 
 /** Tono: cámbialo aquí y afecta a las respuestas del asistente y a los avisos de tareas. */
 export const TONE = 'Cercano y tranquilo, como un compañero de equipo que habla de tú. Directo, sin florituras ni disculpas largas.';
 
-const SPOKEN_STYLE = `- Habla de tú, en español natural, con frases cortas. Máximo dos frases; una si basta.
-- Tu respuesta se LEE EN VOZ ALTA: nada de markdown, listas, emojis, símbolos, rutas, enlaces, código ni siglas técnicas.
+const SPOKEN_STYLE = `- Habla de tú, en español natural, con frases cortas. Máximo dos o tres frases; una si basta.
+- Tu respuesta se muestra en pantalla y se LEE EN VOZ ALTA, con exactamente las mismas palabras: nada de markdown, listas, emojis, símbolos, rutas, enlaces, código ni siglas técnicas.
 - Di los números y estados con palabras normales ("tres tareas", "está revisando"). Con más de tres elementos, nombra los dos o tres más importantes y resume el resto ("y dos más").
 - Nada de jerga técnica: no menciones git, ramas, worktrees, prompts, MCP ni herramientas. Habla de proyectos y tareas.
 - Empieza por lo importante. No repitas la orden del usuario ni empieces con "Claro" o "Por supuesto".`;
@@ -49,6 +49,17 @@ export function buildInstructions({ projects = [], fromVoice = false } = {}) {
   ];
   if (fromVoice) parts.push('Esta orden se ha dictado por voz y la ha transcrito un programa: puede tener errores.');
   return parts.join('\n\n');
+}
+
+/**
+ * Avisos que surgieron mientras el usuario hablaba: no se dijeron en su momento, así que se añaden al
+ * final de la siguiente respuesta. La respuesta es única: lo que se lee en pantalla es lo que se oye.
+ */
+export function noticesBlock(notices = []) {
+  if (!notices.length) return '';
+  return `\n\n[Avisos pendientes, ocurrieron mientras el usuario hablaba y aún no los sabe:\n${notices.map((n) => `- ${n}`).join('\n')}\n`
+    + 'Contesta primero a lo que ha dicho el usuario. Al final de ESA MISMA respuesta añade los avisos con una transición natural '
+    + '("Por cierto…", "Ah, y además…"), con tus palabras y sin repetirlos literalmente. Sigue siendo breve.]';
 }
 
 /** Instrucción para resumir en voz alta lo que hizo el agente de código al terminar una tarea. */

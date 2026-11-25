@@ -1,5 +1,5 @@
 // Texto → voz con una voz de Piper en español ejecutada localmente (sherpa-onnx).
-// Los archivos de la voz viven en data/voice/. Si no están, la interfaz usa las voces del sistema.
+// Las voces viven en data/voice/<carpeta>/ (una por carpeta). Si no hay ninguna, la interfaz usa las voces del sistema.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -7,25 +7,46 @@ import { fileURLToPath } from 'node:url';
 import { VOICE, cleanForSpeech } from './persona.js';
 
 const require = createRequire(import.meta.url);
-const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data/voice/vits-piper-es_ES-davefx-medium');
-const MODEL = path.join(DIR, 'es_ES-davefx-medium.onnx');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data/voice');
+const DEFAULT_VOICE = 'vits-piper-es_ES-davefx-medium';
 
-let tts = null;
+const engines = new Map(); // id de voz -> OfflineTts
 let failed = null;
 
-const installed = () => fs.existsSync(MODEL);
-export const ttsStatus = () => ({ engine: 'piper', voice: 'es_ES-davefx-medium', ready: installed() && !failed, error: failed });
+/** Voces de Piper instaladas: una carpeta de data/voice/ con su .onnx y tokens.txt. */
+export function listVoices() {
+  let dirs = [];
+  try { dirs = fs.readdirSync(ROOT, { withFileTypes: true }).filter((d) => d.isDirectory()); } catch { return []; }
+  return dirs.flatMap((d) => {
+    const onnx = fs.readdirSync(path.join(ROOT, d.name)).find((f) => f.endsWith('.onnx'));
+    if (!onnx || !fs.existsSync(path.join(ROOT, d.name, 'tokens.txt'))) return [];
+    return [{ id: d.name, label: onnx.replace(/\.onnx$/, '').replace(/-/g, ' · ').replace(/_/g, '-'), model: path.join(ROOT, d.name, onnx) }];
+  });
+}
 
-function load() {
-  if (tts) return tts;
+/** Voz pedida; si no existe, la predeterminada o la primera instalada. */
+const pickVoice = (id) => {
+  const all = listVoices();
+  return all.find((v) => v.id === id) || all.find((v) => v.id === DEFAULT_VOICE) || all[0] || null;
+};
+
+export const ttsStatus = () => {
+  const voices = listVoices().map(({ id, label }) => ({ id, label }));
+  return { engine: 'piper', voices, ready: voices.length > 0 && !failed, error: failed };
+};
+
+function load(voice) {
+  if (engines.has(voice.id)) return engines.get(voice.id);
   const sherpa = require('sherpa-onnx-node');
-  tts = new sherpa.OfflineTts({
+  const dir = path.join(ROOT, voice.id);
+  const tts = new sherpa.OfflineTts({
     model: {
-      vits: { model: MODEL, tokens: path.join(DIR, 'tokens.txt'), dataDir: path.join(DIR, 'espeak-ng-data') },
+      vits: { model: voice.model, tokens: path.join(dir, 'tokens.txt'), dataDir: path.join(dir, 'espeak-ng-data') },
       debug: false, numThreads: 2, provider: 'cpu',
     },
     maxNumSentences: 2,
   });
+  engines.set(voice.id, tts);
   return tts;
 }
 
@@ -40,13 +61,14 @@ function toWav(samples, rate) {
   return buf;
 }
 
-/** Devuelve un WAV con el texto hablado. Lanza TTS_MISSING si la voz no está disponible. */
-export async function synthesize(text) {
+/** Devuelve un WAV con el texto hablado con la voz indicada. Lanza TTS_MISSING si no hay voz disponible. */
+export async function synthesize(text, voiceId) {
   const clean = cleanForSpeech(text, VOICE.maxChars * 3);
   if (!clean) throw new Error('No hay texto que leer');
-  if (!installed()) throw Object.assign(new Error('La voz local no está instalada.'), { code: 'TTS_MISSING' });
+  const voice = pickVoice(voiceId);
+  if (!voice) throw Object.assign(new Error('La voz local no está instalada.'), { code: 'TTS_MISSING' });
   try {
-    const a = load().generate({ text: clean, sid: VOICE.speakerId, speed: VOICE.speed });
+    const a = load(voice).generate({ text: clean, sid: VOICE.speakerId, speed: VOICE.speed });
     return toWav(a.samples, a.sampleRate);
   } catch (e) {
     failed = e.message;

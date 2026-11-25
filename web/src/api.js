@@ -16,7 +16,7 @@ export const api = {
   testAgent: (id) => req('POST', `/api/agents/${id}/test`),
   completeSetup: () => req('POST', '/api/setup/complete'),
   projects: () => req('GET', '/api/projects'),
-  assistant: (text, reset = false, fromVoice = false) => req('POST', '/api/assistant', { text, reset, fromVoice }),
+  assistant: (text, reset = false, fromVoice = false, notices = []) => req('POST', '/api/assistant', { text, reset, fromVoice, notices }),
   listFolders: (path) => req('GET', `/api/fs/list${path ? `?path=${encodeURIComponent(path)}` : ''}`),
   createProject: (b) => req('POST', '/api/projects', b),
   renameProject: (id, name) => req('PUT', `/api/projects/${id}`, { name }),

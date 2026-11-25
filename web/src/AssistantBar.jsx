@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import VoiceSetupModal from './VoiceSetupModal.jsx';
-import { setVoiceReply, speak, startRecording, stopSpeaking, transcribeAudio, voiceReplyEnabled } from './voice.js';
+import { addMessage } from './conversation.js';
+import { restorePending, setHold, setVoiceReply, speak, startRecording, stopSpeaking, takePending, transcribeAudio, voiceReplyEnabled } from './voice.js';
 
 const MicIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -18,7 +19,7 @@ const SpeakerIcon = ({ off }) => (
 export default function AssistantBar() {
   const [text, setText] = useState('');
   const [phase, setPhase] = useState('idle'); // idle | recording | transcribing | working
-  const [reply, setReply] = useState(null); // { text, heard, error, ask }
+  const [ask, setAsk] = useState(false); // el asistente ha hecho una pregunta y espera respuesta
   const [fresh, setFresh] = useState(true); // próxima orden empieza conversación nueva
   const [voiceOn, setVoiceOn] = useState(voiceReplyEnabled());
   const [setup, setSetup] = useState(false);
@@ -35,13 +36,20 @@ export default function AssistantBar() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Mientras hablas o esperas respuesta, los avisos del asistente esperan (y se añaden a su siguiente respuesta).
+  useEffect(() => { setHold(phase !== 'idle'); }, [phase]);
+  useEffect(() => () => setHold(false), []);
+
   const run = async (t, heard) => {
-    setPhase('working'); setReply(null);
+    setPhase('working'); setAsk(false);
+    addMessage('user', t, { voice: !!heard });
+    const notices = takePending();
     try {
-      const r = await api.assistant(t, fresh, !!heard);
-      setReply({ text: r.reply, heard, ask: r.expectsReply }); setFresh(false); setText('');
-      if (voiceOn) speak(r.spoken);
-    } catch (err) { setReply({ error: err.message, heard }); }
+      const r = await api.assistant(t, fresh, !!heard, notices);
+      addMessage('assistant', r.reply); // el mismo texto que se lee en voz alta
+      setAsk(!!r.expectsReply); setFresh(false); setText('');
+      if (voiceOn) speak(r.reply);
+    } catch (err) { restorePending(notices); addMessage('assistant', err.message, { error: true }); }
     finally { setPhase('idle'); }
   };
 
@@ -61,7 +69,7 @@ export default function AssistantBar() {
       rec.current = await startRecording();
     } catch (e) {
       setPhase('idle');
-      setReply({ error: e.name === 'NotAllowedError' ? 'No tengo permiso para usar el micrófono. Actívalo en los permisos del navegador.' : `No se pudo usar el micrófono: ${e.message}` });
+      addMessage('assistant', e.name === 'NotAllowedError' ? 'No tengo permiso para usar el micrófono. Actívalo en los permisos del navegador.' : `No se pudo usar el micrófono: ${e.message}`, { error: true });
     }
   };
   const stopTalking = async () => {
@@ -72,12 +80,12 @@ export default function AssistantBar() {
       const audio = await r.stop();
       if (!audio) { setPhase('idle'); return; }
       const heard = await transcribeAudio(audio);
-      if (!heard) { setPhase('idle'); setReply({ error: 'No te he oído bien. Acércate al micrófono e inténtalo de nuevo.' }); return; }
+      if (!heard) { setPhase('idle'); addMessage('assistant', 'No te he oído bien. Acércate al micrófono e inténtalo de nuevo.', { error: true }); return; }
       setText(heard);
       await run(heard, heard);
     } catch (e) {
       setPhase('idle');
-      if (e.code === 'MODEL_MISSING') setSetup(true); else setReply({ error: e.message });
+      if (e.code === 'MODEL_MISSING') setSetup(true); else addMessage('assistant', e.message, { error: true });
     }
   };
 
@@ -98,7 +106,7 @@ export default function AssistantBar() {
   }, []);
 
   const placeholder = {
-    idle: reply?.ask ? 'Responde al asistente… (mantén el micrófono)' : 'Pídele algo al asistente… (Ctrl+K)',
+    idle: ask ? 'Responde al asistente… (mantén el micrófono)' : 'Pídele algo al asistente… (Ctrl+K)',
     recording: 'Te escucho… suelta para enviar',
     transcribing: 'Transcribiendo lo que has dicho…',
     working: 'El asistente está trabajando…',
@@ -106,19 +114,10 @@ export default function AssistantBar() {
 
   return (
     <div className="assistant">
-      {reply && (
-        <div className={`assistant-reply ${reply.error ? 'bad' : ''}`}>
-          <div className="grow">
-            {reply.heard && <div className="tmeta heard">Has dicho: «{reply.heard}»</div>}
-            {reply.error || reply.text}
-          </div>
-          <button className="icon-btn" onClick={() => setReply(null)} aria-label="Cerrar">✕</button>
-        </div>
-      )}
       <form className="assistant-bar" onSubmit={send}>
         <span className="assistant-spark" aria-hidden="true">✦</span>
         <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} disabled={phase !== 'idle'} placeholder={placeholder} />
-        {!fresh && phase === 'idle' && <button type="button" className="link-btn" onClick={() => { setFresh(true); setReply(null); }}>Nueva conversación</button>}
+        {!fresh && phase === 'idle' && <button type="button" className="link-btn" onClick={() => { setFresh(true); setAsk(false); addMessage('divider', 'Nueva conversación'); }}>Nueva conversación</button>}
         <button type="button" className={`round-btn ${voiceOn ? '' : 'muted'}`} title={voiceOn ? 'Respuestas en voz alta: activadas' : 'Respuestas en voz alta: desactivadas'}
           onClick={() => { const v = !voiceOn; setVoiceOn(v); setVoiceReply(v); if (!v) stopSpeaking(); }}><SpeakerIcon off={!voiceOn} /></button>
         <button type="button" className={`round-btn mic ${phase === 'recording' ? 'live' : ''}`} disabled={busy}
