@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import ProcessView from './ProcessView.jsx';
 import LogView from './LogView.jsx';
 import DiffView from './DiffView.jsx';
 
 export default function TaskView({ task, events, onDeleted, onBack }) {
-  const [tab, setTab] = useState('log');
+  const [tab, setTab] = useState('steps');
   const [err, setErr] = useState('');
   const [followUp, setFollowUp] = useState('');
   const running = task.status === 'running';
@@ -42,15 +43,18 @@ export default function TaskView({ task, events, onDeleted, onBack }) {
       {err && <div className="error">{err}</div>}
       {task.error && <div className="error">{task.error}</div>}
       <nav className="tabs">
-        <button className={tab === 'log' ? 'on' : ''} onClick={() => setTab('log')}>Log</button>
-        <button className={tab === 'diff' ? 'on' : ''} onClick={() => setTab('diff')} disabled={running || closed}>Diff</button>
+        <button className={tab === 'steps' ? 'on' : ''} onClick={() => setTab('steps')}>Proceso</button>
+        <button className={tab === 'diff' ? 'on' : ''} onClick={() => setTab('diff')} disabled={running || closed}>Cambios</button>
+        <button className={tab === 'log' ? 'on' : ''} onClick={() => setTab('log')}>Log técnico</button>
       </nav>
-      {tab === 'log' ? <LogView events={events} running={running} agent={task.agent} /> : <DiffView task={task} />}
+      {tab === 'steps' && <ProcessView task={task} events={events} running={running} agent={task.agent} />}
+      {tab === 'log' && <LogView events={events} running={running} agent={task.agent} />}
+      {tab === 'diff' && <DiffView task={task} />}
       {!running && !closed && (
         <form className="followup" onSubmit={(e) => {
           e.preventDefault();
           if (!followUp.trim()) return;
-          act(() => api.cont(task.id, followUp))().then(() => { setFollowUp(''); setTab('log'); });
+          act(() => api.cont(task.id, followUp))().then(() => { setFollowUp(''); setTab('steps'); });
         }}>
           <input value={followUp} onChange={(e) => setFollowUp(e.target.value)}
             placeholder="Prompt de seguimiento (continúa la misma sesión)…" />
