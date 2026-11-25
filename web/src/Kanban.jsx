@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from './Modal.jsx';
 import { api } from './api.js';
-import { COLUMNS, columnOf, timeAgo } from './projects.js';
+import { COLUMNS, STATUS_LABEL, columnOf, timeAgo } from './projects.js';
 
 // Movimientos permitidos al arrastrar (de columna -> a columna). El resto los decide el asistente.
 const MOVES = { 'review>finished': 'apply', 'review>progress': 'rework' };
@@ -53,14 +53,16 @@ function Card({ task, onOpen, onDragStart }) {
   const col = columnOf(task);
   const movable = col === 'review';
   return (
-    <div className={`card ${movable ? 'movable' : ''}`} draggable={movable} onClick={() => onOpen(task)}
+    <div className={`card tone-${col} ${movable ? 'movable' : ''}`} draggable={movable} onClick={() => onOpen(task)}
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', task.id); e.dataTransfer.effectAllowed = 'move'; onDragStart(task); }}
       title={movable ? 'Arrástrala a «Terminada» o a «En progreso»' : undefined}>
-      <div className="tname wrap">{task.name}</div>
-      <div className="tmeta">
-        {col === 'progress' && <span className="pulse">Trabajando… </span>}
-        {task.status === 'error' && <span className="warn-text">Algo salió mal · </span>}
-        {timeAgo(task.created_at)}
+      <div className="card-title">{task.name}</div>
+      <div className="card-foot">
+        <span className={`badge ${task.status}`}>{STATUS_LABEL[task.status] || task.status}</span>
+        <span className="tmeta">
+          {col === 'progress' && <span className="pulse">Trabajando… </span>}
+          {timeAgo(task.created_at)}
+        </span>
       </div>
     </div>
   );
@@ -89,7 +91,7 @@ export default function Kanban({ tasks, onOpenTask, onNewTask }) {
         {COLUMNS.map((c) => {
           const items = tasks.filter((t) => columnOf(t) === c.id).sort((a, b) => b.created_at - a.created_at);
           return (
-            <div key={c.id} className={`column ${over === c.id && canDrop(c.id) ? 'over' : ''} ${dragging && canDrop(c.id) ? 'droppable' : ''}`}
+            <div key={c.id} className={`column tone-${c.id} ${over === c.id && canDrop(c.id) ? 'over' : ''} ${dragging && canDrop(c.id) ? 'droppable' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setOver(c.id); }} onDragLeave={() => setOver(null)}
               onDrop={(e) => { e.preventDefault(); drop(c.id); }}>
               <div className="column-head"><span>{c.title}</span><span className="count">{items.length}</span></div>
