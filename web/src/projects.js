@@ -2,6 +2,7 @@
 export const projectName = (repoPath) => repoPath.split(/[\\/]/).filter(Boolean).pop() || repoPath;
 
 export const STATUS_LABEL = {
+  pending: 'Pendiente',
   running: 'En curso',
   done: 'Lista para revisar',
   error: 'Con error',
