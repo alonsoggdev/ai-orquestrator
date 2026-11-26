@@ -2,6 +2,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
+import { summaryPrompt } from '../voice/persona.js';
 
 const run = promisify(execFile);
 const bin = (cfg = {}) => cfg.bin || process.env.CLAUDE_BIN || 'claude';
@@ -70,9 +71,7 @@ export default {
 
   /** Resumen de una frase, pensado para leerse en voz alta (modelo barato, sin herramientas). */
   async summarize({ text, config }) {
-    const prompt = 'Resume en UNA frase corta, en español natural y sin jerga, lo que ha hecho el asistente según este mensaje. '
-      + 'Sin markdown, sin símbolos, sin rutas ni nombres técnicos: se leerá en voz alta. Responde solo con la frase.\n\n'
-      + String(text).slice(0, 6000);
+    const prompt = summaryPrompt(text);
     const model = config?.model ? [] : ['--model', 'haiku'];
     const { stdout } = await run(bin(config), ['-p', prompt, '--output-format', 'json', '--tools', '', ...model, ...modelArgs(config)],
       { cwd: os.tmpdir(), timeout: 90_000, maxBuffer: 4 * 1024 * 1024 });

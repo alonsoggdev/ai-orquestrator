@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { q } from './db.js';
 import { autoCommit } from './git.js';
 import { getAgent, getConfig } from './agents/index.js';
+import { cleanForSpeech } from './voice/persona.js';
 
 const procs = new Map();           // taskId -> ChildProcess
 const listeners = new Set();       // (msg) => void ; msg = {type:'task'|'event', ...}
@@ -85,6 +86,7 @@ export function startRun(task, prompt, { resume = false } = {}) {
     try {
       if (status === 'done' && lastResult) text = await agent.summarize({ text: lastResult, config });
       else if (status === 'error') text = `La tarea ${task.name} ha fallado.`;
+      text = cleanForSpeech(text);
       if (!text) return;
       addEvent(task.id, 'voice', text);
       emit({ type: 'speak', taskId: task.id, name: task.name, text });

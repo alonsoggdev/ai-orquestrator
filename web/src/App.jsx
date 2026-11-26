@@ -10,7 +10,9 @@ import { MoveModal } from './Kanban.jsx';
 import { EditProjectModal, DeleteProjectModal } from './ProjectModals.jsx';
 import TaskView from './TaskView.jsx';
 import { groupProjects, timeAgo } from './projects.js';
-import { speak, voiceReplyEnabled } from './voice.js';
+import ConversationPanel from './ConversationPanel.jsx';
+import SettingsModal from './SettingsModal.jsx';
+import { announce } from './voice.js';
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
@@ -50,7 +52,7 @@ export default function App() {
           loadProjects(); // otra ventana (o el asistente) cambió los proyectos
         } else if (m.type === 'speak') {
           // resumen hablado de una tarea; solo suena en la ventana visible
-          if (voiceReplyEnabled() && document.visibilityState === 'visible') speak(m.text);
+          if (document.visibilityState === 'visible') announce(m.text);
         } else if (m.type === 'confirm') {
           setConfirm(m); // el asistente pide confirmación de una acción peligrosa
         } else if (m.type === 'backlog') {
@@ -107,6 +109,7 @@ export default function App() {
           ))}
           {!projects.length && <li className="empty">Sin proyectos todavía</li>}
         </ul>
+        <button className="link-btn settings-link" onClick={() => setModal('settings')}>Ajustes</button>
       </aside>
 
       <main>
@@ -126,6 +129,7 @@ export default function App() {
       </main>
 
       <AssistantBar />
+      <ConversationPanel />
       {confirm?.kind === 'delete_project' && projects.find((p) => p.id === confirm.id) && (
         <DeleteProjectModal project={projects.find((p) => p.id === confirm.id)} onClose={() => setConfirm(null)}
           onDeleted={() => {
@@ -155,6 +159,7 @@ export default function App() {
             loadProjects();
           }} />
       )}
+      {modal === 'settings' && <SettingsModal onClose={() => setModal(null)} />}
       {modal === 'project' && (
         <NewProjectModal onClose={() => setModal(null)}
           onCreated={(p) => { setModal(null); loadProjects().then(() => goProject(p.path)); }} />

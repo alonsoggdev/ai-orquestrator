@@ -67,13 +67,14 @@ app.post('/api/voice/transcribe', express.raw({ type: 'application/octet-stream'
   res.json({ text: await transcribe(audio) });
 }));
 app.post('/api/voice/speak', wrap(async (req, res) => {
-  const wav = await synthesize(String(req.body.text || ''));
+  const wav = await synthesize(String(req.body.text || ''), req.body.voice);
   res.type('audio/wav').send(wav);
 }));
 
 // ---------- Asistente (texto/voz → MCP) ----------
 app.post('/api/assistant', wrap(async (req, res) => {
-  res.json(await runAssistant({ text: req.body.text, reset: !!req.body.reset, port: PORT }));
+  res.json(await runAssistant({ text: req.body.text, reset: !!req.body.reset, fromVoice: !!req.body.fromVoice,
+    notices: Array.isArray(req.body.notices) ? req.body.notices.slice(0, 5).map(String) : [], port: PORT }));
 }));
 // Las acciones peligrosas las confirma el usuario en pantalla: el MCP solo avisa, la UI ejecuta.
 app.post('/api/assistant/confirm', wrap(async (req, res) => {
