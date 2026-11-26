@@ -5,6 +5,7 @@ import Dashboard from './Dashboard.jsx';
 import NewProjectModal from './NewProjectModal.jsx';
 import NewTaskModal from './NewTaskModal.jsx';
 import ContextMenu from './ContextMenu.jsx';
+import Header from './Header.jsx';
 import AssistantBar from './AssistantBar.jsx';
 import { MoveModal } from './Kanban.jsx';
 import { EditProjectModal, DeleteProjectModal } from './ProjectModals.jsx';
@@ -85,8 +86,8 @@ export default function App() {
     <div className="layout"
       // menú del navegador fuera de los campos de texto (ahí sirve para copiar y pegar)
       onContextMenu={(e) => { if (!e.target.closest('input, textarea')) e.preventDefault(); }}>
+      <Header />
       <aside>
-        <h1>Orquestrator</h1>
         <ul className="tasks nav">
           <li className={!selected && !project ? 'active' : ''} onClick={() => goProject(null)}>
             <div className="tname">Resumen</div>

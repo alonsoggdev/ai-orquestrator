@@ -3,6 +3,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
 import { summaryPrompt } from '../voice/persona.js';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const run = promisify(execFile);
 const bin = (cfg = {}) => cfg.bin || process.env.CLAUDE_BIN || 'claude';
@@ -47,10 +49,35 @@ export default {
     }
     try {
       const s = JSON.parse(out);
-      return { loggedIn: !!s.loggedIn, method: s.authMethod, plan: s.subscriptionType, loginCommand };
+      return { loggedIn: !!s.loggedIn, method: s.authMethod, plan: s.subscriptionType, email: s.email, loginCommand };
     } catch {
       return { loggedIn: false, error: 'Respuesta no reconocida de `auth status`', loginCommand };
     }
+  },
+
+  /**
+   * Uso de la cuenta activa: % de la sesión (ventana de 5 h) y de la semana, con su hora de reinicio.
+   * Lee el token OAuth que guarda Claude Code y consulta el endpoint de uso de Anthropic (no documentado
+   * oficialmente: si cambia, la cabecera muestra "no disponible"). Lanza Error con un motivo legible.
+   */
+  async usage(config) {
+    const file = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), '.credentials.json');
+    let oauth;
+    try { oauth = JSON.parse(fs.readFileSync(file, 'utf8')).claudeAiOauth; } catch { /* sin fichero */ }
+    if (!oauth?.accessToken) throw new Error('No se encontraron credenciales de Claude en este equipo');
+    if (oauth.expiresAt && oauth.expiresAt < Date.now()) throw new Error('La sesión de Claude ha caducado; se renueva al usar Claude Code');
+    const r = await fetch('https://api.anthropic.com/api/oauth/usage', {
+      headers: { Authorization: `Bearer ${oauth.accessToken}`, 'anthropic-beta': 'oauth-2025-04-20' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) throw new Error(r.status === 429 ? 'Demasiadas consultas de uso; se reintentará' : `El servicio de uso respondió ${r.status}`);
+    const u = await r.json();
+    const win = (w) => (w && typeof w.utilization === 'number'
+      ? { percent: Math.round(w.utilization), resetsAt: w.resets_at ? Date.parse(w.resets_at) : null } : null);
+    const session = win(u.five_hour), week = win(u.seven_day);
+    if (!session && !week) throw new Error('Respuesta de uso no reconocida');
+    const auth = await this.auth(config).catch(() => ({}));
+    return { account: auth.email || null, plan: oauth.subscriptionType || auth.plan || null, session, week };
   },
 
   /**

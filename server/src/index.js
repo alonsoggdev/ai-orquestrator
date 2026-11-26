@@ -12,7 +12,7 @@ import { checkRequirements } from './setup.js';
 import { runAssistant } from './assistant.js';
 import { sttStatus, prepareStt, transcribe } from './voice/stt.js';
 import { ttsStatus, synthesize } from './voice/tts.js';
-import { getAgent, getConfig, setConfig, agentStatus, startLogin, submitLoginCode } from './agents/index.js';
+import { getAgent, getConfig, setConfig, agentStatus, startLogin, submitLoginCode, agentUsage } from './agents/index.js';
 import { startRun, stopRun, isRunning, onMessage, recoverOrphans } from './runner.js';
 
 const PORT = Number(process.env.PORT || 3001);
@@ -53,6 +53,9 @@ app.post('/api/agents/:id/test', wrap(async (req, res) => {
   const a = getAgent(req.params.id);
   res.json(await a.test(getConfig(a.id)));
 }));
+
+// Uso de la cuenta activa del asistente (cabecera). Siempre 200: si no hay dato, `available: false`.
+app.get('/api/usage', wrap(async (_req, res) => res.json(await agentUsage())));
 
 // ---------- Voz ----------
 app.get('/api/voice/status', (_req, res) => res.json({ stt: sttStatus(), tts: ttsStatus() }));
