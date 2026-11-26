@@ -155,3 +155,23 @@ button.danger-solid { background:var(--bad); color:#fff; border-color:var(--bad)
 .heard { margin-bottom:4px; font-style:italic; } .msg.voice { border-left:3px solid #666; padding-left:10px; color:var(--dim); }
 .progress { position:relative; height:26px; border:1px solid var(--line); border-radius:13px; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:12px; }
 .progress-bar { position:absolute; left:0; top:0; bottom:0; background:#2a2a2a; transition:width .3s; } .progress span { position:relative; }
+
+.process { flex:1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+.p-summary { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#0a0a0a; }
+.p-state { display:flex; align-items:center; gap:10px; } .p-count { color:var(--dim); font-size:12px; }
+.p-now { margin-top:6px; font-size:16px; } .p-summary.error .p-now { color:#ffb4ae; }
+.p-steps { flex:1; overflow:auto; min-height:0; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+.steps { list-style:none; margin:0; padding:0; } .step { display:flex; gap:12px; position:relative; padding-bottom:6px; }
+.step::before { content:''; position:absolute; left:10px; top:24px; bottom:-2px; width:1px; background:var(--line); } .step:last-child::before { display:none; }
+.sicon { width:21px; height:21px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#000; margin-top:3px; }
+.sicon.done { background:var(--ok); } .sicon.error { background:var(--bad); color:#fff; }
+.sicon.running { border:2px solid var(--line); border-top-color:var(--fg); animation:spin .8s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } }
+.step-main { flex:1; min-width:0; } .step-head { width:100%; display:flex; align-items:center; gap:10px; background:none; border:0; padding:5px 6px; text-align:left; border-radius:6px; }
+.step-head:hover:not(:disabled) { background:#141414; } .step-head:disabled { opacity:1; cursor:default; }
+.step-label { flex:1; font-size:14px; } .step.running .step-label { color:var(--dim); }
+.step-bad { color:var(--bad); font-size:12px; } .step-time, .step-chev { color:var(--dim); font-size:12px; flex:none; }
+.step-detail { margin:2px 0 8px 6px; padding-left:10px; border-left:2px solid var(--line); color:var(--dim); font-size:12px; display:flex; flex-direction:column; gap:8px; }
+.step-detail pre { max-height:240px; overflow:auto; color:var(--fg); }
+.p-final { margin-top:12px; border:1px solid var(--line); border-radius:10px; padding:14px; background:#0a0a0a; }
+.p-final h3 { margin:0 0 8px; font-size:15px; } .p-voice { margin:0 0 10px; font-size:15px; } .p-sub { color:var(--dim); margin-top:8px; } .p-sub.bad { color:var(--warn); }
+.p-files { margin:6px 0 0; padding-left:20px; } .p-more { margin-top:10px; } .p-more summary { color:var(--dim); cursor:pointer; font-size:12px; }
